@@ -1,0 +1,227 @@
+<html>
+	<head>
+		<title>Webcams</title>
+		<style>
+			body { margin: 0; overflow: hidden; }
+			canvas { width: 100%; height: 100% }
+		</style>
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	</head>
+	<body>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r80/three.js"></script>
+		<script>
+		
+
+var devicesList = [];
+var videosObj = [];
+var k = 0;
+var c = 0;
+var isReady = false;
+
+navigator.getUserMedia = navigator.getUserMedia ||
+  navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+
+if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+  console.log("enumerateDevices() not supported.");
+}
+
+// List cameras.
+navigator.mediaDevices.enumerateDevices()
+.then(function(devices) {
+  devices.forEach(function(device) {
+	  if(device.kind == 'videoinput')
+	  {
+		  console.log("Found " + device.label + ", " + device.deviceId );
+		  devicesList[k] = device.deviceId;
+		  
+		  var video = document.createElement('video');
+		  video.setAttribute('autoplay', 'autoplay');
+		  video.setAttribute('muted', 'muted');
+		  video.setAttribute('width', 1280);
+		  video.setAttribute('height', 720);
+		  videosObj[k] = video;
+		  
+		  //document.getElementById('container').appendChild(video);
+		  start(k);
+		  k++;
+		  
+	  }
+  });
+  
+  isReady = true;
+})
+.catch(function(err) {
+  console.log(err.name + ": " + err.message);
+});
+
+function errorCallback(error) {
+  console.log('navigator.getUserMedia error: ', error);
+}
+
+function start(idx) {
+   var constraints = {
+	audio: false,
+    video: {
+      deviceId: devicesList[idx],
+	  width: 1280, 
+	  height: 720,
+	  aspectRatio: 1280/720
+    }
+  };
+  navigator.mediaDevices.getUserMedia(constraints)
+	.then(function(mediaStream)
+	{	
+		/*
+		var video = document.getElementById('video');
+		video.src = window.URL.createObjectURL(mediaStream);
+		video.play();
+		*/
+		videosObj[idx].src = window.URL.createObjectURL(mediaStream);
+		videosObj[idx].load();
+		videosObj[idx].play();
+		
+	})
+	.catch(function(err) {
+	  console.log(err.name + ": " + err.message);
+	});
+}
+
+/*
+document.addEventListener("click", clickVideo, false);
+function clickVideo(e)
+{
+	console.log(c);
+	start(c++ % 4);
+}
+*/
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+
+			var videosContexts = [];
+			var videosTextures = [];
+			
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+
+			//var geometry = new THREE.BoxGeometry( 14, 9, 14 );
+			
+			var plane = new THREE.PlaneGeometry(14, 9);
+						
+			//var material = new THREE.MeshBasicMaterial( { color: 0xffffff, wireframe: true } );
+			//console.log(geometry.vertices);
+			//var materials = [];
+			
+			var right = new THREE.Mesh(plane, GetVideoMaterial(2));
+			right.position.x = 7 + (7 * Math.sqrt(2)) / 2;
+			right.position.y = 0;
+			right.position.z = -7 * (1 - Math.sqrt(2) / 2);
+			right.rotateY((-45 * Math.PI)/180);
+			scene.add(right);
+			 
+			var front = new THREE.Mesh(plane, GetVideoMaterial(1));
+			front.position.x = 0;
+			front.position.y = 0;
+			front.position.z = -7;
+			scene.add(front);
+			
+			var left = new THREE.Mesh(plane, GetVideoMaterial(0));
+			left.position.x = -7 + (-7 * Math.sqrt(2)) / 2;
+			left.position.y = 0;
+			left.position.z = -7 * (1 - Math.sqrt(2) / 2);
+			left.rotateY((45 * Math.PI)/180);
+			scene.add(left);
+			
+			camera.position.z = -2;
+			
+			var render = function () {	
+				for(var i = 0; i < videosObj.length; i++)
+				{
+					if(videosObj[i].readyState == videosObj[i].HAVE_ENOUGH_DATA)
+					{
+					if(videosContexts[i])
+					{
+						videosContexts[i].drawImage( videosObj[i], 0, 0, 1024, 1024 );
+						if ( videosTextures[i] ) 
+							videosTextures[i].needsUpdate = true;
+						}
+					}
+						
+					
+				}			
+				
+				if(rightDirection && camera.position.x > -5.30) {
+					camera.rotation.y += 0.0004;
+					camera.position.x -= 0.0030;
+					if(camera.position.x < 0)
+					{
+						camera.position.z += 0.0017;
+					}
+					else
+					{
+						camera.position.z -= 0.0017;
+					}
+					
+				} else if (!rightDirection && camera.position.x < 5.30) {
+					camera.rotation.y -= 0.0004;
+					camera.position.x += 0.0030;
+					if(camera.position.x > 0)
+					{
+						camera.position.z += 0.0017;
+					}
+					else
+					{
+						camera.position.z -= 0.0017;
+					}
+				}
+				else
+				{
+					rightDirection = !rightDirection;
+				}
+			
+				requestAnimationFrame( render );
+				renderer.render(scene, camera);
+			};
+		
+			render();
+			var rightDirection = true;
+			document.addEventListener("keydown", MoveIt, false);
+			function MoveIt(e)
+			{
+				var keyCode = e.keyCode;
+				
+				
+				//console.log(camera.rotation.y, camera.position.x);
+				/*
+				else if(keyCode==38) {
+					cube.rotation.x -= 0.1;
+				} else if (keyCode == 40) {
+					cube.rotation.x += 0.1;
+				}
+				*/
+			}
+			
+			function GetVideoMaterial(i)
+			{
+				videoImage = document.createElement( 'canvas' );
+				videoImage.width = 1024;
+				videoImage.height = 1024;
+
+				videoImageContext = videoImage.getContext( '2d' );
+				videoImageContext.fillStyle = '#ffffff';
+				videoImageContext.fillRect( 0, 0, 1024, 1024 );
+
+				videoTexture = new THREE.Texture( videoImage );
+				videoTexture.minFilter = THREE.LinearFilter;
+				videoTexture.magFilter = THREE.LinearFilter;
+				videoTexture.wrapS = THREE.RepeatWrapping;				
+				videoTexture.repeat.x = 1;
+				
+				videosContexts[i] = videoImageContext;
+				videosTextures[i] = videoTexture;
+				
+				return new THREE.MeshBasicMaterial( { map: videoTexture } );
+			}
+		</script>
+	</body>
+</html>
